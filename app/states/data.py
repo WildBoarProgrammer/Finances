@@ -1,7 +1,7 @@
 account_categories_data = [
     {
         "category_name": "Cash",
-        "total_balance": 65342.3,
+        "total_balance": 1.3,
         "one_month_change": 1826.1,
         "one_month_change_percent": 2.9,
         "is_open": True,
@@ -41,7 +41,7 @@ account_categories_data = [
     },
     {
         "category_name": "Credit Cards",
-        "total_balance": 2828.99,
+        "total_balance": 10.99,
         "one_month_change": -63.03,
         "one_month_change_percent": -2.2,
         "is_open": True,
@@ -65,7 +65,7 @@ account_categories_data = [
     },
     {
         "category_name": "Investments",
-        "total_balance": 542301.55,
+        "total_balance": 1.55,
         "one_month_change": 10287.56,
         "one_month_change_percent": 1.9,
         "is_open": True,
