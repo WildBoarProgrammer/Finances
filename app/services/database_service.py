@@ -100,7 +100,7 @@ class DatabaseService:
         entrate = self.db.query(func.sum(Transaction.amount)).filter(
             and_(
                 Transaction.account_id == account_id,
-                Transaction.type == CatType.ENTRATA
+                Transaction.type == 'ENTRATA'
             )
         ).scalar() or 0.0
         
@@ -108,7 +108,7 @@ class DatabaseService:
         uscite = self.db.query(func.sum(Transaction.amount)).filter(
             and_(
                 Transaction.account_id == account_id,
-                Transaction.type == CatType.USCITA
+                Transaction.type == 'USCITA'
             )
         ).scalar() or 0.0
         
@@ -214,7 +214,7 @@ class DatabaseService:
             ).all()
             
             for transaction in transactions:
-                if transaction.type == CatType.ENTRATA:
+                if transaction.type == 'ENTRATA':
                     balance += transaction.amount
                 else:
                     balance -= transaction.amount
@@ -236,7 +236,7 @@ class DatabaseService:
             and_(
                 Transaction.date >= start_date,
                 Transaction.date < end_date,
-                Transaction.type == CatType.ENTRATA
+                Transaction.type == 'ENTRATA'
             )
         ).scalar() or 0.0
         
@@ -245,7 +245,7 @@ class DatabaseService:
             and_(
                 Transaction.date >= start_date,
                 Transaction.date < end_date,
-                Transaction.type == CatType.USCITA
+                Transaction.type == 'USCITA'
             )
         ).scalar() or 0.0
         
