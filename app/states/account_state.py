@@ -11,6 +11,7 @@ from app.models.models import (
     NetWorthDataPoint,
 )
 from app.states.data import account_categories_data
+from app.states.database_state import DatabaseState
 
 
 def generate_net_worth_data(
@@ -75,7 +76,9 @@ class AccountState(rx.State):
         "All time",
     ]
     selected_performance_type: str = "Net worth performance"
-    account_categories: List[AccountCategory] = account_categories_data
+    # account_categories: List[AccountCategory] = account_categories_data  # Ora verrà dal database
+    use_database: bool = True  # Flag per abilitare il database
+    db_state: DatabaseState = DatabaseState()
     assets_summary: List[AssetLiabilitySummaryItem] = [
         {
             "name": "Investments",
@@ -111,6 +114,14 @@ class AccountState(rx.State):
         },
     ]
     summary_view: str = "Totals"
+
+    @rx.var
+    def account_categories(self) -> List[AccountCategory]:
+        """Ottiene le categorie account dal database o dai dati simulati."""
+        if self.use_database and self.db_state.is_connected:
+            return self.db_state.get_accounts_data()
+        else:
+            return account_categories_data
 
     @rx.var
     def net_worth_performance_data(
@@ -316,9 +327,45 @@ class AccountState(rx.State):
         if view in ["Totals", "Percent"]:
             self.summary_view = view
 
+    @rx.event  
+    def initialize_app(self):
+        """Inizializza l'applicazione e il database."""
+        if self.use_database:
+            self.db_state.initialize_database()
+            if self.db_state.is_connected:
+                # Aggiorna i dati dal database
+                db_data = self.db_state.get_net_worth_data(365)
+                if db_data:
+                    self._raw_net_worth_data = db_data
+                    self.net_worth = db_data[-1]["value"]
+                yield rx.toast.success("Database collegato con successo!")
+            else:
+                yield rx.toast.warning(f"Errore database: {self.db_state.error_message}. Usando dati simulati.")
+                self.use_database = False
+
+    @rx.event
+    def toggle_database_mode(self):
+        """Attiva/disattiva la modalità database."""
+        self.use_database = not self.use_database
+        if self.use_database:
+            self.initialize_app()
+        else:
+            yield rx.toast.info("Modalità dati simulati attivata")
+
     @rx.event
     def refresh_all(self):
-        """Placeholder for refreshing all account data. Simulates data changes."""
+        """Refreshes all account data from database or simulates changes."""
+        if self.use_database and self.db_state.is_connected:
+            # Ricarica dal database
+            self.db_state.refresh_data()
+            db_data = self.db_state.get_net_worth_data(365)
+            if db_data:
+                self._raw_net_worth_data = db_data
+                self.net_worth = db_data[-1]["value"]
+            yield rx.toast.success("Dati ricaricati dal database")
+            return
+            
+        # Fallback ai dati simulati
         new_data = generate_net_worth_data()
         self._raw_net_worth_data = new_data
         self.net_worth = new_data[-1]["value"]
