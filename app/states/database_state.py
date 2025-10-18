@@ -324,7 +324,3 @@ class DatabaseState(rx.State):
                 
         except Exception as e:
             yield rx.toast.error(f"Errore: {str(e)}")
-
-
-# Istanza globale dello stato database
-database_state = DatabaseState()

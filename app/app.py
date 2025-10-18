@@ -22,11 +22,11 @@ def index() -> rx.Component:
         rx.el.main(
             # Pannello di controllo database
             rx.cond(
-                ~AccountState.db_state.is_connected & AccountState.use_database,
+                ~AccountState.db_connected & AccountState.use_database,
                 rx.el.div(
                     rx.el.div(
                         rx.text("⚠️ Database non connesso", class_name="text-orange-600 font-medium"),
-                        rx.text(AccountState.db_state.error_message, class_name="text-sm text-gray-600"),
+                        rx.text(AccountState.db_error, class_name="text-sm text-gray-600"),
                         rx.button(
                             "Riprova connessione",
                             on_click=AccountState.initialize_app,

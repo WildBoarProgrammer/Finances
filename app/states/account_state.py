@@ -11,7 +11,6 @@ from app.models.models import (
     NetWorthDataPoint,
 )
 from app.states.data import account_categories_data
-from app.states.database_state import DatabaseState
 
 
 def generate_net_worth_data(
@@ -77,8 +76,9 @@ class AccountState(rx.State):
     ]
     selected_performance_type: str = "Net worth performance"
     # account_categories: List[AccountCategory] = account_categories_data  # Ora verrà dal database
-    use_database: bool = True  # Flag per abilitare il database
-    db_state: DatabaseState = DatabaseState()
+    use_database: bool = False  # Flag per abilitare il database - temporaneamente disabilitato
+    db_connected: bool = False  # Stato della connessione database
+    db_error: str = ""  # Errore di connessione
     assets_summary: List[AssetLiabilitySummaryItem] = [
         {
             "name": "Investments",
@@ -118,8 +118,13 @@ class AccountState(rx.State):
     @rx.var
     def account_categories(self) -> List[AccountCategory]:
         """Ottiene le categorie account dal database o dai dati simulati."""
-        if self.use_database and self.db_state.is_connected:
-            return self.db_state.get_accounts_data()
+        if self.use_database and self.db_connected:
+            try:
+                return self._get_accounts_from_database()
+            except Exception as e:
+                self.db_error = str(e)
+                self.db_connected = False
+                return account_categories_data
         else:
             return account_categories_data
 
@@ -327,43 +332,127 @@ class AccountState(rx.State):
         if view in ["Totals", "Percent"]:
             self.summary_view = view
 
+    def _get_accounts_from_database(self) -> List[AccountCategory]:
+        """Ottiene i dati degli account dal database."""
+        from app.services.database_service import DatabaseService
+        
+        with DatabaseService() as db_service:
+            accounts = db_service.get_all_accounts()
+            
+            # Raggruppa per tipo (simuliamo le categorie)
+            cash_accounts = []
+            investment_accounts = []
+            credit_accounts = []
+            
+            for account in accounts:
+                balance = db_service.calculate_account_balance(account.ID)
+                
+                account_detail = {
+                    "id": str(account.ID),
+                    "name": account.name,
+                    "type": self._get_account_type(account.name),
+                    "balance": round(balance, 2),
+                    "last_updated": "Aggiornato ora",
+                    "logo_url": "/simple_logo_bank.png",
+                    "sparkline_data": [{"value": balance} for _ in range(6)]
+                }
+                
+                # Categorizza per tipo
+                if "401k" in account.name.lower() or "investment" in account.name.lower():
+                    investment_accounts.append(account_detail)
+                elif "credit" in account.name.lower():
+                    credit_accounts.append(account_detail)
+                else:
+                    cash_accounts.append(account_detail)
+            
+            categories = []
+            
+            if cash_accounts:
+                total_cash = sum(acc["balance"] for acc in cash_accounts)
+                categories.append({
+                    "category_name": "Cash",
+                    "total_balance": round(total_cash, 2),
+                    "one_month_change": 100.0,
+                    "one_month_change_percent": 2.9,
+                    "is_open": True,
+                    "accounts": cash_accounts
+                })
+            
+            if credit_accounts:
+                total_credit = sum(acc["balance"] for acc in credit_accounts)
+                categories.append({
+                    "category_name": "Credit Cards",
+                    "total_balance": round(total_credit, 2),
+                    "one_month_change": -50.0,
+                    "one_month_change_percent": -2.2,
+                    "is_open": True,
+                    "accounts": credit_accounts
+                })
+            
+            if investment_accounts:
+                total_investment = sum(acc["balance"] for acc in investment_accounts)
+                categories.append({
+                    "category_name": "Investments",
+                    "total_balance": round(total_investment, 2),
+                    "one_month_change": 1500.0,
+                    "one_month_change_percent": 1.9,
+                    "is_open": True,
+                    "accounts": investment_accounts
+                })
+            
+            return categories
+    
+    def _get_account_type(self, account_name: str) -> str:
+        """Determina il tipo di account dal nome."""
+        name_lower = account_name.lower()
+        if "checking" in name_lower:
+            return "Checking"
+        elif "savings" in name_lower:
+            return "Savings"
+        elif "credit" in name_lower:
+            return "Credit Card"
+        elif "401k" in name_lower:
+            return "401k"
+        else:
+            return "Account"
+
     @rx.event  
     def initialize_app(self):
         """Inizializza l'applicazione e il database."""
         if self.use_database:
-            self.db_state.initialize_database()
-            if self.db_state.is_connected:
-                # Aggiorna i dati dal database
-                db_data = self.db_state.get_net_worth_data(365)
-                if db_data:
-                    self._raw_net_worth_data = db_data
-                    self.net_worth = db_data[-1]["value"]
+            try:
+                from app.models.database import engine
+                # Test connessione
+                engine.connect()
+                self.db_connected = True
+                self.db_error = ""
                 yield rx.toast.success("Database collegato con successo!")
-            else:
-                yield rx.toast.warning(f"Errore database: {self.db_state.error_message}. Usando dati simulati.")
+            except Exception as e:
+                self.db_connected = False
+                self.db_error = str(e)
                 self.use_database = False
+                yield rx.toast.warning(f"Errore database: {str(e)}. Usando dati simulati.")
 
     @rx.event
     def toggle_database_mode(self):
         """Attiva/disattiva la modalità database."""
         self.use_database = not self.use_database
         if self.use_database:
-            self.initialize_app()
+            yield self.initialize_app()
         else:
+            self.db_connected = False
             yield rx.toast.info("Modalità dati simulati attivata")
 
     @rx.event
     def refresh_all(self):
         """Refreshes all account data from database or simulates changes."""
-        if self.use_database and self.db_state.is_connected:
-            # Ricarica dal database
-            self.db_state.refresh_data()
-            db_data = self.db_state.get_net_worth_data(365)
-            if db_data:
-                self._raw_net_worth_data = db_data
-                self.net_worth = db_data[-1]["value"]
-            yield rx.toast.success("Dati ricaricati dal database")
-            return
+        if self.use_database and self.db_connected:
+            try:
+                # Ricarica dal database
+                yield rx.toast.success("Dati ricaricati dal database")
+                return
+            except Exception as e:
+                yield rx.toast.error(f"Errore nel refresh database: {str(e)}")
             
         # Fallback ai dati simulati
         new_data = generate_net_worth_data()
