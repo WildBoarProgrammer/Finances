@@ -29,7 +29,7 @@ def index() -> rx.Component:
                         rx.text(AccountState.db_error, class_name="text-sm text-gray-600"),
                         rx.button(
                             "Riprova connessione",
-                            on_click=AccountState.initialize_app,
+                            on_click=AccountState.retry_database_connection,
                             class_name="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                         ),
                         rx.button(
@@ -38,6 +38,23 @@ def index() -> rx.Component:
                             class_name="mt-2 ml-2 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
                         ),
                         class_name="p-4 bg-orange-50 border border-orange-200 rounded-lg"
+                    ),
+                    class_name="mb-4"
+                )
+            ),
+            # Pannello di controllo per modalità database
+            rx.cond(
+                ~AccountState.use_database,
+                rx.el.div(
+                    rx.el.div(
+                        rx.text("📊 Modalità Dati Simulati", class_name="text-blue-600 font-medium"),
+                        rx.text("Stai visualizzando dati di esempio. Connetti il database per dati reali.", class_name="text-sm text-gray-600"),
+                        rx.button(
+                            "🔗 Connetti Database",
+                            on_click=AccountState.toggle_database_mode,
+                            class_name="mt-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                        ),
+                        class_name="p-4 bg-blue-50 border border-blue-200 rounded-lg"
                     ),
                     class_name="mb-4"
                 )
@@ -75,9 +92,4 @@ app = rx.App(
     )
 )
 
-# Inizializza il database al caricamento dell'app
-def on_load():
-    """Funzione chiamata al caricamento dell'app.""" 
-    return AccountState.initialize_app
-
-app.add_page(index, title="Accounts Dashboard", on_load=on_load)
+app.add_page(index, title="Accounts Dashboard")

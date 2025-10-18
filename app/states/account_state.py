@@ -416,10 +416,12 @@ class AccountState(rx.State):
         else:
             return "Account"
 
-    @rx.event  
-    def initialize_app(self):
-        """Inizializza l'applicazione e il database."""
+    @rx.event
+    def toggle_database_mode(self):
+        """Attiva/disattiva la modalità database."""
+        self.use_database = not self.use_database
         if self.use_database:
+            # Prova a connettersi al database
             try:
                 from app.models.database import engine
                 # Test connessione
@@ -432,16 +434,25 @@ class AccountState(rx.State):
                 self.db_error = str(e)
                 self.use_database = False
                 yield rx.toast.warning(f"Errore database: {str(e)}. Usando dati simulati.")
-
-    @rx.event
-    def toggle_database_mode(self):
-        """Attiva/disattiva la modalità database."""
-        self.use_database = not self.use_database
-        if self.use_database:
-            yield self.initialize_app()
         else:
             self.db_connected = False
             yield rx.toast.info("Modalità dati simulati attivata")
+
+    @rx.event
+    def retry_database_connection(self):
+        """Riprova la connessione al database."""
+        try:
+            from app.models.database import engine
+            # Test connessione
+            engine.connect()
+            self.db_connected = True
+            self.db_error = ""
+            self.use_database = True
+            yield rx.toast.success("Database collegato con successo!")
+        except Exception as e:
+            self.db_connected = False
+            self.db_error = str(e)
+            yield rx.toast.error(f"Errore database: {str(e)}")
 
     @rx.event
     def refresh_all(self):
