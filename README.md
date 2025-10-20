@@ -247,4 +247,22 @@ L'architettura modulare e il design pattern service-layer permettono facilmente 
 
 ---
 
+## ⚠️ **Disclaimer**
+
+Questa è un'applicazione **dimostrativa** per gestione finanziaria personale. Non utilizzare in produzione senza:
+
+- Implementare autenticazione/autorizzazione robusta
+- Configurare HTTPS e sicurezza database
+- Validare e sanitizzare tutti gli input utente
+- Implementare backup e disaster recovery
+
+## 🔒 **Setup Sicurezza**
+
+1. **Mai committare file `.env`** con credenziali reali
+2. **Usa password sicure** per database production
+3. **Configura firewall** per database server
+4. **Implementa logging** per audit trail
+
+---
+
 **Built with ❤️ using Reflex - The full-stack Python framework**
