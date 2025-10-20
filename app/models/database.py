@@ -10,7 +10,7 @@ load_dotenv()
 # Configurazione database
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://username:password@localhost:5432/finances_db"
+    "postgresql://postgres:ciaociao@localhost:5432/finances_db"
 )
 
 # Creazione del motore SQLAlchemy
